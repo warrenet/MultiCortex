@@ -19,6 +19,11 @@ class UniversalStorageAdapter implements StorageAdapter {
             localStorage.setItem(key, JSON.stringify(value));
         } catch (e) {
             console.error('[Storage:Web] Failed to save', e);
+            // Check for quota exceeded specifically
+            if (e instanceof DOMException && (e.code === 22 || e.name === 'QuotaExceededError')) {
+                throw new Error('Storage quota exceeded. Export your data and clear some projects.');
+            }
+            throw e;
         }
     }
 

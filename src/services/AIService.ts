@@ -38,6 +38,9 @@ export const AIService = {
         }));
 
         try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
             const response = await fetch(`${baseUrl}/chat/completions`, {
                 method: 'POST',
                 headers: {
@@ -51,8 +54,11 @@ export const AIService = {
                     messages: sanitizedMessages,
                     stream: true,
                     max_tokens: 2048
-                })
+                }),
+                signal: controller.signal
             });
+
+            clearTimeout(timeoutId);
 
             if (!response.ok) {
                 const error = await response.text();

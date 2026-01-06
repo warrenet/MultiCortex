@@ -98,5 +98,28 @@ export const TipService = {
             TIPS.find(t => t.id === 'projects-1')!,
             TIPS.find(t => t.id === 'export-1')!,
         ];
+    },
+
+    /**
+     * Show the full onboarding tour with sequential toasts
+     */
+    showOnboardingTour(toast: any, onComplete?: () => void): void {
+        const tips = this.getOnboardingTips();
+        let index = 0;
+
+        const showNextTip = () => {
+            if (index < tips.length) {
+                toast.info(`${tips[index].title}\n${tips[index].message}`, {
+                    duration: 4000
+                });
+                index++;
+                setTimeout(showNextTip, 4500);
+            } else {
+                toast.success('🎓 Tour complete! Explore the tabs below.');
+                onComplete?.();
+            }
+        };
+
+        showNextTip();
     }
 };

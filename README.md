@@ -1,50 +1,73 @@
-# Welcome to your Expo app 👋
+# MultiCortex 🧠
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+**Tactical Second Brain** built with Expo, React Native, and AI.
 
-## Get started
+MultiCortex is a local-first, privacy-focused application designed to capture, organize, and crystallize your thoughts using advanced AI. It acts as a "second brain" that travels with you, offering instant capture, intelligent tagging, and persistent memory.
 
-1. Install dependencies
+## 🚀 Key Features
 
+### ⚡ Quick Capture
+- **Instant Ingest**: Capture text, ideas, and notes immediately.
+- **Auto-Redaction**: Automatically detects and strips sensitive API keys (OpenAI, Anthropic, etc.) for security.
+- **Formatting**: Supports markdown and rich text structure.
+
+### 🏷️ Intelligent Tagging
+- **Auto-Extraction**: Type `#hashtags` in your content to automatically tag items.
+- **Live Feedback**: See tags appear instantly as you type.
+- **Smart Filtering**: Filter your entire library by tapping tags in the Projects view.
+
+### 🧠 Neural Chat
+- **Persistent Memory**: Chat history is saved locally and persists across sessions.
+- **Context-Aware**: The AI agent has access to your 10 most recent captures to provide relevant answers.
+- **Save to Projects**: Bookmark any AI response to save it permanently to your library.
+
+### 🛡️ Safety Net (Soft Delete)
+- **Instant Actions**: Delete items instantly without annoying confirmation popups.
+- **Trash Can**: Deleted items move to a Trash folder where they can be restored or permanently purged.
+- **Undo**: Every destructive action has an immediate "Undo" option.
+
+### 📂 Project Management
+- **Search**: Full-text search across all your captures.
+- **Organization**: Group by tags, source (chat vs capture), and date.
+- **Export/Import**: Full JSON export/import for data portability.
+
+## 🛠️ Tech Stack
+
+- **Framework**: [Expo](https://expo.dev) (React Native) -> Web, iOS, Android
+- **Styling**: [NativeWind](https://www.nativewind.dev/) (Tailwind CSS for Native)
+- **State Management**: [Zustand](https://github.com/pmndrs/zustand) with persistent storage
+- **Icons**: [Lucide React Native](https://lucide.dev)
+- **AI**: OpenRouter API (Access to GPT-4, Claude 3, etc.)
+
+## 🏁 Get Started
+
+1. **Install Dependencies**
    ```bash
    npm install
    ```
 
-2. Start the app
-
+2. **Start the App**
    ```bash
    npx expo start
    ```
+   - Press `w` for Web
+   - Scan QR code for iOS/Android (Expo Go)
 
-In the output, you'll find options to open the app in a
+3. **Configure AI**
+   - Go to **Settings** tab.
+   - Enter your [OpenRouter](https://openrouter.ai) API key.
+   - Your key is stored securely in local storage.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## 🔒 Privacy & Security
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+- **Local First**: All data is stored on your device (LocalStorage / Async Storage).
+- **Key Redaction**: The app actively sanitizes input to prevent accidental pasting of secrets.
+- **No Tracking**: No analytics or tracking scripts are included.
 
-## Get a fresh project
+## 🤝 Contributing
 
-When you're ready, run:
+This is a personal tool designed for high-velocity operators. Pull requests are welcome for tactical improvements.
 
-```bash
-npm run reset-project
-```
+## 📄 License
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+MIT
