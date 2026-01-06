@@ -23,9 +23,21 @@ export default function ChatTab() {
     const scrollRef = useRef<ScrollView>(null);
     const hasShownTipRef = useRef(false);
 
-    // Show welcome tip once per session
+    // Show welcome tip once per session (guarded to prevent loops)
     useEffect(() => {
         if (hasShownTipRef.current) return;
+
+        // Extra guard: check sessionStorage to prevent PWA reload loops
+        if (Platform.OS === 'web') {
+            try {
+                const hasShown = sessionStorage.getItem('multicortex-chat-tip-shown');
+                if (hasShown) return;
+                sessionStorage.setItem('multicortex-chat-tip-shown', 'true');
+            } catch {
+                // sessionStorage not available, use ref only
+            }
+        }
+
         hasShownTipRef.current = true;
         const tip = TipService.getRandomTip('chat');
         toast.info(tip.message, { duration: 5000 });

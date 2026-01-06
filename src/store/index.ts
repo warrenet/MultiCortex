@@ -2,32 +2,41 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { storage } from '../services/UniversalStorageAdapter';
 import { TagUtils } from '../utils/tagUtils';
+import { z } from 'zod'; // 1. Safety: Zod
+import * as Haptics from 'expo-haptics'; // 7. Haptics
+import { Platform } from 'react-native';
 
 // ============================================
-// Types
+// Schemas (Safety & Stability)
 // ============================================
 
-export interface ProjectData {
-    content: string;
-    source?: 'capture' | 'chat' | 'import';
-    metadata?: Record<string, unknown>;
-}
+export const ProjectDataSchema = z.object({
+    content: z.string(),
+    source: z.enum(['capture', 'chat', 'import']).optional(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
+});
 
-export interface Project {
-    id: string;
-    name: string;
-    data: ProjectData;
-    tags: string[];
-    createdAt: number;
-    deletedAt?: number; // NEW: Soft delete timestamp
-}
+export const ProjectSchema = z.object({
+    id: z.string(),
+    name: z.string(),
+    data: ProjectDataSchema,
+    tags: z.array(z.string()),
+    createdAt: z.number(),
+    deletedAt: z.number().optional(),
+    isPinned: z.boolean().optional(), // 3. Features: Pinning
+});
 
-export interface ChatMessage {
-    id: string;
-    role: 'user' | 'assistant' | 'system';
-    content: string;
-    timestamp: number;
-}
+export const ChatMessageSchema = z.object({
+    id: z.string(),
+    role: z.enum(['user', 'assistant', 'system']),
+    content: z.string(),
+    timestamp: z.number(),
+});
+
+// Infer types from Zod schemas
+export type ProjectData = z.infer<typeof ProjectDataSchema>;
+export type Project = z.infer<typeof ProjectSchema>;
+export type ChatMessage = z.infer<typeof ChatMessageSchema>;
 
 // ============================================
 // State Interface
@@ -58,12 +67,13 @@ interface AppState {
 
     // Project Actions
     addProject: (project: Omit<Project, 'tags'> & { tags?: string[] }) => void;
-    trashProject: (id: string) => void; // Renamed from deleteProject
-    restoreProject: (id: string) => void; // NEW
-    permanentlyDeleteProject: (id: string) => void; // NEW
-    emptyTrash: () => void; // NEW
+    trashProject: (id: string) => void;
+    restoreProject: (id: string) => void;
+    permanentlyDeleteProject: (id: string) => void;
+    emptyTrash: () => void;
     updateProject: (id: string, data: Partial<ProjectData>) => void;
-    importProjects: (projects: Project[]) => void;
+    togglePinProject: (id: string) => void; // NEW: Pinning Action
+    importProjects: (projects: unknown[]) => boolean; // Updated to return success/fail
 
     // Chat Actions
     addChatMessage: (message: ChatMessage) => void;
@@ -76,6 +86,21 @@ interface AppState {
     exportData: () => { projects: Project[]; chatHistory: ChatMessage[]; exportedAt: number };
     getUniqueTags: () => string[];
 }
+
+// ============================================
+// Haptic Helper
+// ============================================
+const triggerHaptic = (type: 'light' | 'medium' | 'heavy' | 'success' | 'error') => {
+    if (Platform.OS === 'web') return;
+
+    switch (type) {
+        case 'light': Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); break;
+        case 'medium': Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); break;
+        case 'heavy': Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); break;
+        case 'success': Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); break;
+        case 'error': Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); break;
+    }
+};
 
 // ============================================
 // Store
@@ -99,44 +124,53 @@ export const useStore = create<AppState>()(
             completeTour: () => set({ hasSeenTour: true }),
 
             // Project Actions
-            addProject: (projectData) => set((state) => {
-                const tags = projectData.tags && projectData.tags.length > 0
-                    ? projectData.tags
-                    : TagUtils.extractTags(projectData.data.content);
+            addProject: (projectData) => {
+                triggerHaptic('success');
+                set((state) => {
+                    const tags = projectData.tags && projectData.tags.length > 0
+                        ? projectData.tags
+                        : TagUtils.extractTags(projectData.data.content);
 
-                const project: Project = {
-                    ...projectData,
-                    tags
-                };
+                    const project: Project = {
+                        ...projectData,
+                        tags,
+                        isPinned: false
+                    };
+                    return { projects: [project, ...state.projects] }; // Add to top
+                });
+            },
 
-                return {
-                    projects: [...state.projects, project]
-                };
-            }),
+            trashProject: (id) => {
+                triggerHaptic('medium');
+                set((state) => ({
+                    projects: state.projects.map(p =>
+                        p.id === id ? { ...p, deletedAt: Date.now(), isPinned: false } : p
+                    )
+                }));
+            },
 
-            // Soft delete
-            trashProject: (id) => set((state) => ({
-                projects: state.projects.map(p =>
-                    p.id === id ? { ...p, deletedAt: Date.now() } : p
-                )
-            })),
+            restoreProject: (id) => {
+                triggerHaptic('light');
+                set((state) => ({
+                    projects: state.projects.map(p =>
+                        p.id === id ? { ...p, deletedAt: undefined } : p
+                    )
+                }));
+            },
 
-            // Restore from trash
-            restoreProject: (id) => set((state) => ({
-                projects: state.projects.map(p =>
-                    p.id === id ? { ...p, deletedAt: undefined } : p
-                )
-            })),
+            permanentlyDeleteProject: (id) => {
+                triggerHaptic('heavy');
+                set((state) => ({
+                    projects: state.projects.filter(p => p.id !== id)
+                }));
+            },
 
-            // Hard delete
-            permanentlyDeleteProject: (id) => set((state) => ({
-                projects: state.projects.filter(p => p.id !== id)
-            })),
-
-            // Empty trash
-            emptyTrash: () => set((state) => ({
-                projects: state.projects.filter(p => !p.deletedAt)
-            })),
+            emptyTrash: () => {
+                triggerHaptic('heavy');
+                set((state) => ({
+                    projects: state.projects.filter(p => !p.deletedAt)
+                }));
+            },
 
             updateProject: (id, data) => set((state) => ({
                 projects: state.projects.map(p => {
@@ -145,7 +179,6 @@ export const useStore = create<AppState>()(
                         const tags = data.content
                             ? TagUtils.extractTags(newContent)
                             : p.tags;
-
                         return {
                             ...p,
                             data: { ...p.data, ...data },
@@ -156,15 +189,37 @@ export const useStore = create<AppState>()(
                 })
             })),
 
-            importProjects: (projects) => set((state) => {
-                const processedProjects = projects.map(p => ({
-                    ...p,
-                    tags: p.tags || TagUtils.extractTags(p.data.content)
+            togglePinProject: (id) => {
+                triggerHaptic('light');
+                set((state) => ({
+                    projects: state.projects.map(p =>
+                        p.id === id ? { ...p, isPinned: !p.isPinned } : p
+                    )
                 }));
-                return {
-                    projects: [...state.projects, ...processedProjects]
-                };
-            }),
+            },
+
+            importProjects: (projects) => {
+                try {
+                    // Safe Parse with Zod
+                    const validProjects = z.array(ProjectSchema).parse(projects);
+
+                    // Re-calculate tags if needed
+                    const processedProjects = validProjects.map(p => ({
+                        ...p,
+                        tags: p.tags || TagUtils.extractTags(p.data.content)
+                    }));
+
+                    set((state) => ({
+                        projects: [...state.projects, ...processedProjects]
+                    }));
+                    triggerHaptic('success');
+                    return true;
+                } catch (e) {
+                    console.error("Import failed invalid schema", e);
+                    triggerHaptic('error');
+                    return false;
+                }
+            },
 
             // Chat Actions
             addChatMessage: (message) => set((state) => ({
@@ -173,7 +228,10 @@ export const useStore = create<AppState>()(
 
             setChatHistory: (messages) => set({ chatHistory: messages }),
 
-            clearChatHistory: () => set({ chatHistory: [] }),
+            clearChatHistory: () => {
+                triggerHaptic('medium');
+                set({ chatHistory: [] });
+            },
 
             saveChatAsProject: (content, name) => {
                 const tags = TagUtils.extractTags(content);
@@ -185,10 +243,12 @@ export const useStore = create<AppState>()(
                         source: 'chat'
                     },
                     tags,
-                    createdAt: Date.now()
+                    createdAt: Date.now(),
+                    isPinned: false
                 };
+                triggerHaptic('success');
                 set((state) => ({
-                    projects: [...state.projects, project]
+                    projects: [project, ...state.projects]
                 }));
             },
 

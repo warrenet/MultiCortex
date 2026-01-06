@@ -6,9 +6,9 @@ import { storage } from '../../src/services/UniversalStorageAdapter';
 import { toast } from 'sonner-native';
 import {
     Key, Download, Upload, Trash2, BookOpen, ChevronRight,
-    Shield, Database, HelpCircle
+    Shield, Database, HelpCircle, Activity
 } from 'lucide-react-native';
-import { PageHeader, SectionTitle, FloatingHelpButton } from '../../src/components/ui';
+import { PageHeader, SectionTitle, FloatingHelpButton, ActivityHeatmap } from '../../src/components/ui';
 
 interface SettingsItemProps {
     icon: any;
@@ -164,6 +164,14 @@ export default function SettingsTab() {
             />
 
             <ScrollView className="flex-1">
+                {/* Insights Section (NEW) */}
+                <View className="px-4 pt-6 pb-2">
+                    <SectionTitle title="Neural Activity" icon={Activity} />
+                </View>
+                <View className="px-4">
+                    <ActivityHeatmap />
+                </View>
+
                 {/* Security Section */}
                 <View className="px-4 pt-6 pb-2">
                     <SectionTitle title="Security" icon={Shield} />

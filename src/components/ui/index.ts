@@ -8,3 +8,4 @@ export { SectionTitle } from './SectionTitle';
 export { EmptyState } from './EmptyState';
 export { ActionCard } from './ActionCard';
 export { FloatingHelpButton } from './FloatingHelpButton';
+export { ActivityHeatmap } from './ActivityHeatmap';

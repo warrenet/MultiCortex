@@ -1,19 +1,26 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, Alert, Platform } from 'react-native';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, Alert, Platform, LayoutAnimation, UIManager } from 'react-native';
 import { useStore } from '../../src/store';
 import { toast } from 'sonner-native';
-import { FileText, Trash2, Edit3, Search, Save, X, FolderOpen, Tag, RotateCcw, Ban } from 'lucide-react-native';
+import { FileText, Trash2, Edit3, Search, Save, X, FolderOpen, Tag, RotateCcw, Ban, Pin } from 'lucide-react-native';
 import { PageHeader, SectionTitle, EmptyState, FloatingHelpButton } from '../../src/components/ui';
 
 export default function ProjectsTab() {
-  const {
-    projects,
-    trashProject,
-    restoreProject,
-    permanentlyDeleteProject,
-    emptyTrash,
-    updateProject
-  } = useStore();
+  // Enable LayoutAnimation for Android
+  useEffect(() => {
+    if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+      UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+  }, []);
+
+  // Atomic Selectors for Performance ⚡
+  const projects = useStore(state => state.projects);
+  const trashProject = useStore(state => state.trashProject);
+  const restoreProject = useStore(state => state.restoreProject);
+  const permanentlyDeleteProject = useStore(state => state.permanentlyDeleteProject);
+  const emptyTrash = useStore(state => state.emptyTrash);
+  const updateProject = useStore(state => state.updateProject);
+  const togglePinProject = useStore(state => state.togglePinProject);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
@@ -32,30 +39,40 @@ export default function ProjectsTab() {
 
   // Memoized filtered projects (search + tag filter + trash mode)
   const filteredProjects = useMemo(() =>
-    projects.filter(p => {
-      // 1. Trash filter
-      const isDeleted = !!p.deletedAt;
-      if (showTrash !== isDeleted) return false;
+    projects
+      .filter(p => {
+        // 1. Trash filter
+        const isDeleted = !!p.deletedAt;
+        if (showTrash !== isDeleted) return false;
 
-      // 2. Search filter
-      const matchesSearch =
-        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.data?.content?.toLowerCase().includes(searchQuery.toLowerCase());
+        // 2. Search filter
+        const matchesSearch =
+          p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          p.data?.content?.toLowerCase().includes(searchQuery.toLowerCase());
 
-      // 3. Tag filter (only in active mode)
-      const matchesTag = selectedTag ? p.tags?.includes(selectedTag) : true;
+        // 3. Tag filter (only in active mode)
+        const matchesTag = selectedTag ? p.tags?.includes(selectedTag) : true;
 
-      return matchesSearch && matchesTag;
-    }),
+        return matchesSearch && matchesTag;
+      })
+      .sort((a, b) => {
+        // Sort by Pinned First, then Date
+        if (a.isPinned === b.isPinned) {
+          return b.createdAt - a.createdAt;
+        }
+        return a.isPinned ? -1 : 1;
+      }),
     [projects, searchQuery, selectedTag, showTrash]
   );
 
   const handleTrash = useCallback((id: string, name: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     trashProject(id);
-    toast.success('Moves to trash', {
+    toast.success('Moved to trash', {
       action: {
         label: 'Undo',
         onClick: () => {
+          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
           restoreProject(id);
           toast.success('Restored!');
         },
@@ -64,6 +81,7 @@ export default function ProjectsTab() {
   }, [trashProject, restoreProject]);
 
   const handleRestore = useCallback((id: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     restoreProject(id);
     toast.success('Project restored!');
   }, [restoreProject]);
@@ -137,6 +155,12 @@ export default function ProjectsTab() {
     setEditContent('');
   }, []);
 
+  const handleTogglePin = useCallback((id: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    togglePinProject(id);
+    // Haptics handled in store
+  }, [togglePinProject]);
+
   return (
     <View className="flex-1 bg-zinc-950">
       {/* Header */}
@@ -147,6 +171,7 @@ export default function ProjectsTab() {
           <TouchableOpacity
             onPress={() => setShowTrash(!showTrash)}
             className={`p-2 rounded-full ${showTrash ? 'bg-red-900/30' : 'bg-zinc-800'}`}
+            accessibilityLabel="Toggle Trash View"
           >
             {showTrash ? (
               <FolderOpen size={20} color="#ef4444" />
@@ -166,13 +191,14 @@ export default function ProjectsTab() {
               <Search size={18} color="#52525b" />
               <TextInput
                 className="flex-1 text-zinc-100 p-3"
-                placeholder="Search projects..."
+                placeholder="Search projects by name or content..."
                 placeholderTextColor="#52525b"
                 value={searchQuery}
                 onChangeText={setSearchQuery}
+                accessibilityLabel="Search projects"
               />
               {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <TouchableOpacity onPress={() => setSearchQuery('')} accessibilityLabel="Clear search">
                   <X size={18} color="#71717a" />
                 </TouchableOpacity>
               )}
@@ -189,9 +215,10 @@ export default function ProjectsTab() {
               <TouchableOpacity
                 onPress={() => setSelectedTag(null)}
                 className={`mr-2 px-3 py-1.5 rounded-full border ${selectedTag === null
-                    ? 'bg-cyan-600 border-cyan-500'
-                    : 'bg-zinc-800 border-zinc-700'
+                  ? 'bg-cyan-600 border-cyan-500'
+                  : 'bg-zinc-800 border-zinc-700'
                   }`}
+                accessibilityLabel="Show all tags"
               >
                 <Text className={`text-xs font-bold ${selectedTag === null ? 'text-white' : 'text-zinc-400'
                   }`}>
@@ -204,9 +231,10 @@ export default function ProjectsTab() {
                   key={tag}
                   onPress={() => setSelectedTag(selectedTag === tag ? null : tag)}
                   className={`flex-row items-center mr-2 px-3 py-1.5 rounded-full border ${selectedTag === tag
-                      ? 'bg-cyan-900/50 border-cyan-500'
-                      : 'bg-zinc-900 border-zinc-700'
+                    ? 'bg-cyan-900/50 border-cyan-500'
+                    : 'bg-zinc-900 border-zinc-700'
                     }`}
+                  accessibilityLabel={`Filter by tag ${tag}`}
                 >
                   <Tag size={10} color={selectedTag === tag ? '#22d3ee' : '#71717a'} />
                   <Text className={`text-xs font-bold ml-1.5 ${selectedTag === tag ? 'text-cyan-400' : 'text-zinc-400'
@@ -226,6 +254,7 @@ export default function ProjectsTab() {
           <TouchableOpacity
             onPress={handleEmptyTrash}
             className="flex-row items-center bg-red-900/20 px-3 py-1.5 rounded-lg border border-red-900/50"
+            accessibilityLabel="Empty Trash"
           >
             <Trash2 size={14} color="#ef4444" />
             <Text className="text-red-400 text-xs font-bold ml-2">Empty Trash</Text>
@@ -261,13 +290,18 @@ export default function ProjectsTab() {
             {filteredProjects.map((project) => (
               <View
                 key={project.id}
-                className="bg-zinc-900 rounded-2xl border border-zinc-800 mb-4 overflow-hidden"
+                className={`bg-zinc-900 rounded-2xl border ${project.isPinned ? 'border-cyan-500/50' : 'border-zinc-800'} mb-4 overflow-hidden`}
               >
                 {/* Project header */}
                 <View className="p-4 pb-2 flex-row items-center justify-between">
+                  {/* Title & Icon */}
                   <View className="flex-row items-center flex-1">
-                    <View className={`p-2.5 rounded-xl ${showTrash ? 'bg-red-900/20' : 'bg-zinc-800'}`}>
-                      <FileText size={18} color={showTrash ? '#ef4444' : '#71717a'} />
+                    <View className={`p-2.5 rounded-xl ${showTrash ? 'bg-red-900/20' : project.isPinned ? 'bg-cyan-900/30' : 'bg-zinc-800'}`}>
+                      {project.isPinned ? (
+                        <Pin size={18} color="#22d3ee" fill="#22d3ee" />
+                      ) : (
+                        <FileText size={18} color={showTrash ? '#ef4444' : '#71717a'} />
+                      )}
                     </View>
                     <View className="ml-4 flex-1">
                       <Text className={`font-bold text-base ${showTrash ? 'text-zinc-400 italic' : 'text-zinc-100'}`}>
@@ -286,27 +320,44 @@ export default function ProjectsTab() {
                         <TouchableOpacity
                           onPress={() => handleRestore(project.id)}
                           className="p-2.5 bg-emerald-900/20 border border-emerald-900/50 rounded-lg active:bg-emerald-900/40"
+                          accessibilityLabel="Restore Project"
                         >
                           <RotateCcw size={16} color="#34d399" />
                         </TouchableOpacity>
                         <TouchableOpacity
                           onPress={() => handlePermanentDelete(project.id)}
                           className="p-2.5 bg-red-900/20 border border-red-900/50 rounded-lg active:bg-red-900/40"
+                          accessibilityLabel="Delete Permanently"
                         >
                           <Ban size={16} color="#ef4444" />
                         </TouchableOpacity>
                       </>
                     ) : (
                       <>
+                        {/* Pin Button */}
+                        <TouchableOpacity
+                          onPress={() => handleTogglePin(project.id)}
+                          className={`p-2.5 rounded-lg ${project.isPinned ? 'bg-cyan-900/30' : 'bg-zinc-800 active:bg-zinc-700'}`}
+                          accessibilityLabel={project.isPinned ? "Unpin Project" : "Pin Project"}
+                        >
+                          <Pin
+                            size={16}
+                            color={project.isPinned ? "#22d3ee" : "#a1a1aa"}
+                            fill={project.isPinned ? "#22d3ee" : "none"}
+                          />
+                        </TouchableOpacity>
+
                         <TouchableOpacity
                           onPress={() => handleEdit(project.id, project.data?.content || '')}
                           className="p-2.5 bg-zinc-800 rounded-lg active:bg-zinc-700"
+                          accessibilityLabel="Edit Project"
                         >
                           <Edit3 size={16} color="#a1a1aa" />
                         </TouchableOpacity>
                         <TouchableOpacity
                           onPress={() => handleTrash(project.id, project.name)}
                           className="p-2.5 bg-zinc-800 rounded-lg active:bg-red-900/30"
+                          accessibilityLabel="Move to Trash"
                         >
                           <Trash2 size={16} color="#ef4444" />
                         </TouchableOpacity>

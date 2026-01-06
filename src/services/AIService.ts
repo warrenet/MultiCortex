@@ -13,7 +13,14 @@ export interface AIServiceConfig {
     baseUrl?: string;
 }
 
-const DEFAULT_MODEL = 'google/gemini-2.0-flash-exp:free';
+// Free model options (ordered by reliability)
+export const FREE_MODELS = [
+    'deepseek/deepseek-chat:free',
+    'google/gemini-2.0-flash-exp:free',
+    'meta-llama/llama-3.2-3b-instruct:free',
+] as const;
+
+const DEFAULT_MODEL = FREE_MODELS[0]; // DeepSeek as primary
 const DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1';
 
 export const AIService = {
