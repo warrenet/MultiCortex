@@ -11,7 +11,7 @@ const buttonStyle = Platform.OS === 'web' ? { cursor: 'pointer' as const } : {};
 export default function FirstRunWizard() {
     const [step, setStep] = useState(1);
     const [keyInput, setKeyInput] = useState('');
-    const { setApiKey, completeOnboarding } = useStore();
+    const { setApiKey, completeOnboarding, resetStore } = useStore();
 
     const handleInitialize = () => {
         console.log('[FirstRunWizard] Initialize button pressed');
@@ -36,7 +36,14 @@ export default function FirstRunWizard() {
     const handleReset = async () => {
         await storage.clear();
         toast.info('System Reset. Reloading...');
-        setTimeout(() => window.location.reload(), 1000);
+
+        if (Platform.OS === 'web') {
+            // Web: full page reload
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            // Native: reset store state (triggers re-render)
+            setTimeout(() => resetStore(), 1000);
+        }
     };
 
     return (

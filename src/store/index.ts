@@ -2,10 +2,15 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { storage } from '../services/UniversalStorageAdapter';
 
+interface ProjectData {
+    content: string;
+    metadata?: Record<string, unknown>;
+}
+
 interface Project {
     id: string;
     name: string;
-    data: any;
+    data: ProjectData;
     createdAt: number;
 }
 
@@ -19,6 +24,7 @@ interface AppState {
     setApiKey: (key: string) => void;
     completeOnboarding: () => void;
     addProject: (project: Project) => void;
+    resetStore: () => void;
 }
 
 export const useStore = create<AppState>()(
@@ -27,17 +33,24 @@ export const useStore = create<AppState>()(
             hasCompletedOnboarding: false,
             apiKey: null,
             projects: [],
-            // FORCED TRUE: Skip hydration wait to ensure app loads immediately
-            _hasHydrated: true,
+            _hasHydrated: false,
 
             setHydrated: (state) => set({ _hasHydrated: state }),
             setApiKey: (key) => set({ apiKey: key }),
             completeOnboarding: () => set({ hasCompletedOnboarding: true }),
             addProject: (project) => set((state) => ({ projects: [...state.projects, project] })),
+            resetStore: () => set({
+                hasCompletedOnboarding: false,
+                apiKey: null,
+                projects: [],
+            }),
         }),
         {
             name: 'multicortex-storage',
             storage: createJSONStorage(() => storage),
+            onRehydrateStorage: () => (state) => {
+                state?.setHydrated(true);
+            },
         }
     )
 );
